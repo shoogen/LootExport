@@ -1,0 +1,12 @@
+{
+  "name": "lootexport",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+
+  },
+  "scripts": {
+      "build": "rmdir /s /q \"C:\\Program Files (x86)\\World of Warcraft\\_retail_\\Interface\\AddOns\\LootExport\\\" && xcopy /e /y .\\src \"C:\\Program Files (x86)\\World of Warcraft\\_retail_\\Interface\\AddOns\\LootExport\\\"",
+      "zip": "rmdir /s /q .\\build\\ && xcopy /e /y .\\src .\\build\\LootExport\\ && 7z a -tzip build\\LootExport.zip .\\build\\LootExport -mx9 -mmt"
+  }
+}
