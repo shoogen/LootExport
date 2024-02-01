@@ -74,7 +74,7 @@ local function ShowLootExport(all)
         --DevTools_Dump(drops)
 
         for _, drop in ipairs(drops) do
-            table.insert(str, drop.itemHyperlink .. " " .. drop.itemHyperlink:gsub('\124','\124\124')) -- better way to print item info? wowhead link?
+            table.insert(str, drop.itemHyperlink .. "\t" .. drop.itemHyperlink:gsub('\124','\124\124')) -- better way to print item info? wowhead link?
             for _, roll in ipairs(drop.rollInfos) do
                 if roll.state == 4 then
                     warn = true
@@ -84,7 +84,7 @@ local function ShowLootExport(all)
                         rollstr = " " .. tostring(roll.roll)
                     end
 
-                    table.insert(str, " " .. roll.playerName .. " (" .. ROLL_STATES[roll.state] .. rollstr .. ")")
+                    table.insert(str, "\t" .. roll.playerName .. " (" .. ROLL_STATES[roll.state] .. rollstr .. ")")
                 end
             end
             table.insert(str, "\n")
