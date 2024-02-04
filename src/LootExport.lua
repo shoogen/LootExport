@@ -7,59 +7,20 @@ local ROLL_STATES = {
     [5] = "Pass"
 }
 
-local function ShowLootExportClipboard(text)
-    if not LootExportClipboard then
-        local f = CreateFrame("Frame", "LootExportClipboard", UIParent, "DialogBoxFrame")
-        f:SetPoint("CENTER")
-        f:SetSize(600, 500)
+local addon = {}
+local mode_all = false
+local mode_format = "spreadsheet"
 
-        f:SetBackdrop({
-            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            tile = true, tileSize = 16, edgeSize = 16,
-            insets = { left = 3, right = 3, top = 5, bottom = 3 }
-        })
-        f:SetBackdropColor(0.1,0.1,0.1,0.5)
-        f:SetBackdropBorderColor(0.4,0.4,0.4)
-
-        -- Movable
-        f:SetMovable(true)
-        f:SetClampedToScreen(true)
-        f:SetScript("OnMouseDown", function(self, button)
-            if button == "LeftButton" then
-                self:StartMoving()
-            end
-        end)
-        f:SetScript("OnMouseUp", f.StopMovingOrSizing)
-
-        -- ScrollFrame
-        local sf = CreateFrame("ScrollFrame", "LootExportClipboardScrollFrame", LootExportClipboard, "UIPanelScrollFrameTemplate")
-        sf:SetPoint("LEFT", 8, 0)
-        sf:SetPoint("RIGHT", -28, 0)
-        sf:SetPoint("TOP", 0, -8)
-        sf:SetPoint("BOTTOM", LootExportClipboardButton, "TOP", 0, 0)
-
-        -- EditBox
-        local eb = CreateFrame("EditBox", "LootExportClipboardEditBox", LootExportClipboardScrollFrame)
-        eb:SetSize(sf:GetSize())
-        eb:SetMultiLine(true)
-        eb:SetFontObject("ChatFontNormal")
-        eb:SetScript("OnEscapePressed", function() f:Hide() end)
-        sf:SetScrollChild(eb)
-    end
-
-    if text then
-        LootExportClipboardEditBox:SetText(text)
-    end
-
-    LootExportClipboard:Show()
-    LootExportClipboardEditBox:HighlightText()
-    LootExportClipboardEditBox:SetFocus()
-end
-
-local function ShowLootExport(all)
+function addon:BuildLootString(all, format)
     local str = {}
     local warn = false
+    local delimiter = "\t"
+    local link = true
+
+    if format == "chat" then
+        delimiter = " "
+        link = false
+    end
 
     local encounters = C_LootHistory.GetAllEncounterInfos()
     --DevTools_Dump(encounters)
@@ -74,17 +35,20 @@ local function ShowLootExport(all)
         --DevTools_Dump(drops)
 
         for _, drop in ipairs(drops) do
-            table.insert(str, drop.itemHyperlink .. "\t" .. drop.itemHyperlink:gsub('\124','\124\124')) -- better way to print item info? wowhead link?
+            table.insert(str, drop.itemHyperlink)
+            if link then
+                table.insert(str, delimiter .. drop.itemHyperlink:gsub('\124','\124\124')) -- better way to print item info? wowhead link?
+            end
             for _, roll in ipairs(drop.rollInfos) do
                 if roll.state == 4 then
                     warn = true
                 else
                     local rollstr = ""
-                    if (roll.roll) then
+                    if roll.roll then
                         rollstr = " " .. tostring(roll.roll)
                     end
 
-                    table.insert(str, "\t" .. roll.playerName .. " (" .. ROLL_STATES[roll.state] .. rollstr .. ")")
+                    table.insert(str, delimiter .. roll.playerName .. " (" .. ROLL_STATES[roll.state] .. rollstr .. ")")
                 end
             end
             table.insert(str, "\n")
@@ -94,12 +58,127 @@ local function ShowLootExport(all)
         table.insert(str, "\n")
     end
 
-    if warn then table.insert(str, 1, "ROLL STILL IN PROGRESS\n\n") end
-    ShowLootExportClipboard(table.concat(str))
+    return table.concat(str), warn
+end
+
+function addon:ShowLootExportClipboard(text, warn)
+    if not LootExportClipboard then
+        local f = CreateFrame("Frame", "LootExportClipboard", UIParent, "PortraitFrameTemplate")
+        f:SetPoint("CENTER")
+        f:SetSize(600, 500)
+
+        f:SetTitle("Loot Export")
+        f:SetPortraitToAsset("Interface\\Icons\\inv_misc_coin_17")
+
+        -- Movable
+        f:SetMovable(true)
+        f:SetClampedToScreen(true)
+
+        f.TitleContainer:EnableMouse(true)
+        f.TitleContainer:SetScript("OnMouseDown", function() f:StartMoving() end)
+        f.TitleContainer:SetScript("OnMouseUp", function()
+            f:StopMovingOrSizing()
+        end)
+
+        -- Resizable
+        f:SetResizable(true)
+        f:SetResizeBounds(300, 200, 2000, 2000)
+
+        f.resizeButton = CreateFrame("Button", nil, f)
+        f.resizeButton:SetPoint("BOTTOMRIGHT", -6, 7)
+        f.resizeButton:SetSize(16, 16)
+        f.resizeButton:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+        f.resizeButton:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+        f.resizeButton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+
+        f.resizeButton:SetScript("OnMouseDown", function() f:StartSizing("BOTTOMRIGHT") end)
+        f.resizeButton:SetScript("OnMouseUp", function()
+            f:StopMovingOrSizing()
+        end)
+
+        -- Context Menu
+        f.menu = CreateFrame("Frame", nil, f, "UIDropDownMenuTemplate")
+
+        -- Header Text
+        f.header = f:CreateFontString(nil, "OVERLAY", "GameTooltipText")
+        f.header:SetPoint("LEFT", f, "TOPLEFT", 60, -38)
+
+        -- Buttons
+        f.backButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        f.backButton:SetSize(80, 22)
+        f.backButton:SetText("Bosses")
+        f.backButton:SetPoint("RIGHT", f, "TOPRIGHT", -96, -38)
+        f.backButton:SetScript("OnClick", function()
+            local menu = {
+                { text = "Last Boss", arg1 = false, func = addon.ModeBoss },
+                { text = "All Bosses", arg1 = true, func = addon.ModeBoss }
+            }
+
+            EasyMenu(menu, f.menu, "cursor", 0 , 0, "MENU")
+        end)
+
+        f.plusButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        f.plusButton:SetSize(80, 22)
+        f.plusButton:SetText("Format")
+        f.plusButton:SetPoint("RIGHT", f, "TOPRIGHT", -8, -38)
+        f.plusButton:SetScript("OnClick", function()
+            local menu = {
+                { text = "Spreadsheet", arg1 = "spreadsheet", func = addon.ModeFormat },
+                { text = "Discord", arg1 = "chat", func = addon.ModeFormat }
+            }
+
+            EasyMenu(menu, f.menu, "cursor", 0 , 0, "MENU")
+        end)
+
+        -- Scroll Frame
+        f.scrollFrame = CreateFrame("ScrollFrame", nil, f, "ScrollFrameTemplate")
+        f.scrollFrame:SetPoint("TOPLEFT", 16, -60)
+        f.scrollFrame:SetPoint("BOTTOMRIGHT", -27, 24)
+
+        -- EditBox
+        local eb = CreateFrame("EditBox", "LootExportClipboardEditBox", f)
+        eb:SetWidth(f.scrollFrame:GetWidth())
+        eb:SetMultiLine(true)
+        eb:SetFontObject("ChatFontNormal")
+        eb:SetScript("OnEscapePressed", function() f:Hide() end)
+        f.scrollFrame:SetScrollChild(eb)
+        f.scrollFrame:SetScript("OnSizeChanged", function()
+            eb:SetWidth(f.scrollFrame:GetWidth())
+        end)
+    end
+
+    if text then
+        LootExportClipboardEditBox:SetText(text)
+    end
+
+    if warn then
+        LootExportClipboard.header:SetText("WARNING: ROLL STILL IN PROGRESS")
+    else
+        LootExportClipboard.header:SetText("")
+    end
+
+    LootExportClipboard:Show()
+    LootExportClipboardEditBox:HighlightText()
+    LootExportClipboardEditBox:SetFocus()
+end
+
+function addon:ModeBoss(all)
+    mode_all = all
+    addon:ShowLootExport()
+end
+
+function addon:ModeFormat(format)
+    mode_format = format
+    addon:ShowLootExport()
+end
+
+function addon:ShowLootExport()
+    local text, warn = addon:BuildLootString(mode_all, mode_format)
+    addon:ShowLootExportClipboard(text, warn)
 end
 
 SLASH_LOOTEXPORT1 = "/lootexport"
 SLASH_LOOTEXPORT2 = "/le"
 SlashCmdList.LOOTEXPORT = function(msg)
-    ShowLootExport(msg == "all") -- use buttons for 1 vs all?
+    addon:ShowLootExport() -- use buttons for 1 vs all?
 end
