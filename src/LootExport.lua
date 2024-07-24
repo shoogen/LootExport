@@ -104,30 +104,28 @@ function addon:ShowLootExportClipboard(text, warn)
         f.header:SetPoint("LEFT", f, "TOPLEFT", 60, -38)
 
         -- Buttons
-        f.backButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-        f.backButton:SetSize(80, 22)
-        f.backButton:SetText("Bosses")
-        f.backButton:SetPoint("RIGHT", f, "TOPRIGHT", -96, -38)
-        f.backButton:SetScript("OnClick", function()
-            local menu = {
-                { text = "Last Boss", arg1 = false, func = addon.ModeBoss },
-                { text = "All Bosses", arg1 = true, func = addon.ModeBoss }
-            }
-
-            EasyMenu(menu, f.menu, "cursor", 0 , 0, "MENU")
+        f.bossButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        f.bossButton:SetSize(80, 22)
+        f.bossButton:SetText("Bosses")
+        f.bossButton:SetPoint("RIGHT", f, "TOPRIGHT", -96, -38)
+        f.bossButton:SetScript("OnClick", function()
+            UIDropDownMenu_Initialize(f.menu, function(frame, level, menuList)
+                UIDropDownMenu_AddButton({ text = "Last Boss", arg1 = false, func = addon.ModeBoss })
+                UIDropDownMenu_AddButton({ text = "All Bosses", arg1 = true, func = addon.ModeBoss })
+            end, "MENU")
+            ToggleDropDownMenu(1, nil, f.menu, f.bossButton, 0, 0)
         end)
 
-        f.plusButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-        f.plusButton:SetSize(80, 22)
-        f.plusButton:SetText("Format")
-        f.plusButton:SetPoint("RIGHT", f, "TOPRIGHT", -8, -38)
-        f.plusButton:SetScript("OnClick", function()
-            local menu = {
-                { text = "Spreadsheet", arg1 = "spreadsheet", func = addon.ModeFormat },
-                { text = "Discord", arg1 = "chat", func = addon.ModeFormat }
-            }
-
-            EasyMenu(menu, f.menu, "cursor", 0 , 0, "MENU")
+        f.formatButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        f.formatButton:SetSize(80, 22)
+        f.formatButton:SetText("Format")
+        f.formatButton:SetPoint("RIGHT", f, "TOPRIGHT", -8, -38)
+        f.formatButton:SetScript("OnClick", function()
+            UIDropDownMenu_Initialize(f.menu, function(frame, level, menuList)
+                UIDropDownMenu_AddButton({ text = "Spreadsheet", arg1 = "spreadsheet", func = addon.ModeFormat })
+                UIDropDownMenu_AddButton({ text = "Discord", arg1 = "chat", func = addon.ModeFormat })
+            end, "MENU")
+            ToggleDropDownMenu(1, nil, f.menu, f.formatButton, 0, 0)
         end)
 
         -- Scroll Frame
