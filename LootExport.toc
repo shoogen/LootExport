@@ -3,5 +3,6 @@
 ## Interface: 110107
 ## Version: @project-version@
 ## X-Curse-Project-ID: 947355
+## X-Wago-ID: O67jZpN3
 
 LootExport.lua
