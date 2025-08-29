@@ -1,4 +1,5 @@
 local ROLL_STATES = {
+    [-1] = "Won",
     [0] = "NeedMainSpec",
     [1] = "NeedOffSpec",
     [2] = "Transmog",
@@ -11,7 +12,13 @@ local addon = {}
 local mode_all = false
 local mode_format = "spreadsheet"
 
+local function Compare(a, b)
+    if a[-1] ~= b[-1] then return a[-1] > b[-1] end
+    return a.playerName < b.playerName
+end
+
 function addon:BuildLootString(all, format)
+    local summary = {}
     local str = {}
     local warn = false
     local delimiter = "\t"
@@ -49,6 +56,15 @@ function addon:BuildLootString(all, format)
                     end
 
                     table.insert(str, delimiter .. roll.playerName .. " (" .. ROLL_STATES[roll.state] .. rollstr .. ")")
+
+                    -- track summary
+                    if not summary[roll.playerName] then
+                        summary[roll.playerName] = { [-1]=0, [0]=0, [1]=0, [2]=0, [3]=0, [4]=0, [5]=0 }
+                    end
+                    summary[roll.playerName][roll.state] = summary[roll.playerName][roll.state] + 1
+                    if roll.isWinner then
+                        summary[roll.playerName][-1] = summary[roll.playerName][-1] + 1
+                    end
                 end
             end
             table.insert(str, "\n")
@@ -56,6 +72,34 @@ function addon:BuildLootString(all, format)
 
         if not all then break end
         table.insert(str, "\n")
+    end
+
+    if format == "summary" then
+        str = {}
+
+        -- sort
+        local sorted = {}
+        for playerName, rolls in pairs(summary) do
+            rolls.playerName = playerName
+            table.insert(sorted, rolls)
+        end
+        table.sort(sorted, Compare)
+
+        -- headers
+        table.insert(str, "Name")
+        for i = -1, 5 do
+            table.insert(str, delimiter .. ROLL_STATES[i])
+        end
+        table.insert(str, "\n")
+
+        -- rows
+        for _, row in ipairs(sorted) do
+            table.insert(str, row.playerName)
+            for i = -1, 5 do
+                table.insert(str, delimiter .. row[i])
+            end
+            table.insert(str, "\n")
+        end
     end
 
     return table.concat(str), warn
@@ -124,6 +168,7 @@ function addon:ShowLootExportClipboard(text, warn)
             UIDropDownMenu_Initialize(f.menu, function(frame, level, menuList)
                 UIDropDownMenu_AddButton({ text = "Spreadsheet", arg1 = "spreadsheet", func = addon.ModeFormat })
                 UIDropDownMenu_AddButton({ text = "Discord", arg1 = "chat", func = addon.ModeFormat })
+                UIDropDownMenu_AddButton({ text = "Summary", arg1 = "summary", func = addon.ModeFormat })
             end, "MENU")
             ToggleDropDownMenu(1, nil, f.menu, f.formatButton, 0, 0)
         end)
@@ -178,5 +223,5 @@ end
 SLASH_LOOTEXPORT1 = "/lootexport"
 SLASH_LOOTEXPORT2 = "/le"
 SlashCmdList.LOOTEXPORT = function(msg)
-    addon:ShowLootExport() -- use buttons for 1 vs all?
+    addon:ShowLootExport()
 end
