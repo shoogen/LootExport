@@ -1,6 +1,6 @@
 ## Title: Loot Export
 ## Author: shoogen
-## Interface: 120001
+## Interface: 120005
 ## Version: @project-version@
 ## X-Curse-Project-ID: 947355
 ## X-Wago-ID: O67jZpN3
