@@ -1,5 +1,5 @@
 ## Title: Loot Export
 ## Author: shoogen
-## Interface: 120005
+## Interface: 120007
 
 LootExport.lua
